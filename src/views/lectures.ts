@@ -293,52 +293,51 @@ function buildRow(lec: Lecture, onPlay: (l: Lecture) => void): HTMLElement {
   const isVid = lec.contentType === 2;
   const isPdf = lec.contentType === 3;
   const dur = formatDuration(lec.duration);
-  const row = el("div", "lec-row");
+  const row = el(
+    "div",
+    "group flex items-center gap-3.5 sm:gap-4 rounded-2xl border border-border/80 bg-[#0b1220]/80 p-3 sm:p-4 backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:bg-[#0f172a] hover:shadow-xl hover:shadow-primary/5 cursor-pointer"
+  );
 
   const typePill = isPdf
-    ? `<span class="type-pill d">PDF</span>`
-    : `<span class="type-pill v">Video</span>`;
+    ? `<span class="rounded-full bg-amber-500/15 border border-amber-500/25 px-2 py-0.5 text-[10px] font-black uppercase text-amber-400">PDF</span>`
+    : `<span class="rounded-full bg-sky-500/15 border border-sky-500/25 px-2 py-0.5 text-[10px] font-black uppercase text-sky-400">Video</span>`;
 
   const statusBadge = lec.originalLocked
-    ? `<span class="badge-status unlocked">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 11V7a5 5 0 0 1 9.9-1"/><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/></svg>
+    ? `<span class="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold text-sky-400 border border-sky-400/20">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 11V7a5 5 0 0 1 9.9-1"/><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/></svg>
         Unlocked
       </span>`
-    : `<span class="badge-status available">Available</span>`;
+    : `<span class="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">Free</span>`;
 
-  const actionButtons = `
-    <button class="play-btn" title="${isVid ? "Play lecture" : "Open document"}">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none"/>
+  row.innerHTML = `
+    <div class="relative h-14 w-22 sm:h-16 sm:w-26 shrink-0 overflow-hidden rounded-xl bg-slate-900 border border-white/5">
+      ${
+        lec.thumbnailUrl
+          ? `<img src="${esc(lec.thumbnailUrl)}" alt="" loading="lazy" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />`
+          : `<div class="h-full w-full flex items-center justify-center text-sky-400 bg-sky-500/10"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>`
+      }
+      <div class="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </div>
+    </div>
+    <div class="min-w-0 flex-1">
+      <h3 class="line-clamp-2 text-xs sm:text-sm font-bold text-foreground group-hover:text-primary transition-colors leading-snug">
+        ${esc(lec.name)}
+      </h3>
+      <div class="mt-1.5 flex flex-wrap items-center gap-2">
+        ${typePill}
+        ${dur ? `<span class="text-[11px] font-medium text-muted-foreground">${dur}</span>` : ""}
+        ${statusBadge}
+      </div>
+    </div>
+    <button class="press flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary group-hover:bg-primary group-hover:text-black transition-all" title="${isVid ? "Play lecture" : "Open document"}">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <polygon points="6 4 20 12 6 20 6 4"/>
       </svg>
     </button>
   `;
 
-  row.innerHTML = `
-    <div class="lec-thumb ${isVid ? "v" : "d"}">
-      ${
-        lec.thumbnailUrl
-          ? `<img src="${esc(lec.thumbnailUrl)}" alt="" loading="lazy"/>`
-          : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`
-      }
-      <div class="play-overlay"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
-    </div>
-    <div class="lec-body">
-      <div class="lec-title">${esc(lec.name)}</div>
-      <div class="lec-meta">
-        ${typePill}
-        ${dur ? `<span class="dur">${dur}</span>` : ""}
-        ${statusBadge}
-      </div>
-    </div>
-    ${actionButtons}
-  `;
-
   const play = () => onPlay(lec);
-  row.querySelector(".play-btn")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    play();
-  });
   row.addEventListener("click", play);
   return row;
 }
@@ -351,59 +350,61 @@ export async function renderLectures(
   subjectId?: number,
   platform = "eduteria"
 ): Promise<HTMLElement> {
-  const wrap = el("div", "page");
+  const wrap = el("div", "fade-in flex flex-col");
 
-  const displayCourse = courseName || `Course ${courseId}`;
-  const displayTopic = topicName || `Topic ${topicId}`;
-  const platName = platform === "next-toppers" ? "Next Toppers" : (platform.charAt(0).toUpperCase() + platform.slice(1));
+  const displayCourse = courseName || `Batch #${courseId}`;
+  const displayTopic = topicName || `Topic #${topicId}`;
 
-  // Header with full URL breadcrumbs
-  wrap.appendChild(
-    buildHeader(
-      () =>
-        navigate({
-          view: "topics",
-          platform,
-          courseId,
-          courseName,
-          subjectId,
-        }),
-      [
-        { label: platName, onClick: () => navigate({ view: "courses", platform }) },
-        { label: String(courseId), onClick: () => navigate({ view: "subjects", platform, courseId, courseName }) },
-        ...(subjectId
-          ? [
-              {
-                label: `Subject ${subjectId}`,
-                onClick: () =>
-                  navigate({
-                    view: "topics",
-                    platform,
-                    courseId,
-                    courseName,
-                    subjectId,
-                  }),
-              },
-            ]
-          : []),
-        { label: topicName || String(topicId), active: true },
-      ]
-    )
-  );
-
-  const body = el("div");
-  body.innerHTML = `
-    <div class="page-title-bar">
-      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-        <h1 id="topic-title">${esc(displayTopic)}</h1>
-        <span id="lec-count-pill" style="display:none;" class="row-badge"></span>
-      </div>
-      <div class="breadcrumb">${esc(platName)} &rsaquo; ${esc(displayCourse)}</div>
+  wrap.innerHTML = `
+    <!-- Breadcrumb Bar -->
+    <div class="mb-6 flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
+      <button id="btnBackToTopics" class="press inline-flex items-center gap-1.5 rounded-xl border border-border bg-card/80 px-3 py-1.5 text-foreground hover:border-primary/40 hover:text-primary transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        <span>Back to Topics</span>
+      </button>
+      <span>/</span>
+      <button id="btnNavCourse" class="hover:text-primary transition-colors cursor-pointer">${esc(displayCourse)}</button>
+      <span>/</span>
+      <span class="text-foreground line-clamp-1 font-bold">${esc(displayTopic)}</span>
     </div>
-    <div class="list-wrap" id="lec-list">${skeletonLecRows(8)}</div>
+
+    <!-- Title & Stats -->
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-foreground" id="topic-title">${esc(displayTopic)}</h1>
+        <p class="text-xs sm:text-sm text-muted-foreground mt-1">${esc(displayCourse)} &rsaquo; Select lecture to stream</p>
+      </div>
+      <div id="lec-count-pill" class="hidden shrink-0 self-start sm:self-auto rounded-full border border-sky-400/25 bg-sky-500/10 px-3.5 py-1 text-xs font-black text-sky-400">
+        0 Lectures
+      </div>
+    </div>
+
+    <!-- Lectures List -->
+    <div class="flex flex-col gap-3" id="lec-list">
+      ${skeletonLecRows(8)}
+    </div>
   `;
-  wrap.appendChild(body);
-  const listEl = body.querySelector("#lec-list")!;
+
+  wrap.querySelector("#btnBackToTopics")?.addEventListener("click", () => {
+    navigate({
+      view: "topics",
+      courseId,
+      courseName,
+      subjectId,
+    });
+  });
+
+  wrap.querySelector("#btnNavCourse")?.addEventListener("click", () => {
+    navigate({
+      view: "subjects",
+      courseId,
+      courseName,
+    });
+  });
+
+  const listEl = wrap.querySelector("#lec-list")!;
 
   // If topicName was not passed (direct URL visit), resolve topic name
   if (!topicName && subjectId) {
@@ -411,7 +412,7 @@ export async function renderLectures(
       .then((topics) => {
         const found = topics.find((t: Topic) => t.id === topicId);
         if (found) {
-          const h1 = body.querySelector("#topic-title");
+          const h1 = wrap.querySelector("#topic-title");
           if (h1) h1.textContent = found.name;
         }
       })
@@ -473,10 +474,10 @@ export async function renderLectures(
     }
     listEl.innerHTML = "";
 
-    const countPill = body.querySelector<HTMLElement>("#lec-count-pill");
+    const countPill = wrap.querySelector<HTMLElement>("#lec-count-pill");
     if (countPill) {
       countPill.textContent = `${lectures.length} ${lectures.length === 1 ? "lecture" : "lectures"}`;
-      countPill.style.display = "inline-block";
+      countPill.classList.remove("hidden");
     }
 
     lectures.forEach((l: any) => {

@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  plugins: [tailwindcss()],
   // In production all assets are served from root
   base: "/",
   build: {
@@ -12,3 +14,4 @@ export default defineConfig({
     port: 3000,
   },
 });
+

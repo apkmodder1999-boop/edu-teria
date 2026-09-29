@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CODEWITH-VIVEK - Multi-Platform Course Explorer</title>
-  <meta name="description" content="Explore top learning platforms and stream courses from Eduteria and more." />
-  <meta property="og:title" content="CODEWITH-VIVEK - Multi-Platform Course Explorer" />
-  <meta property="og:description" content="Explore top learning platforms and stream courses from Eduteria and more." />
-  <link rel="icon" type="image/png" href="/logo.png" />
-  <link rel="shortcut icon" type="image/png" href="/logo.png" />
-  <link rel="apple-touch-icon" href="/logo.png" />
+  <title>Explore Batches | EDUTERIA LEARN TOPPER</title>
+  <meta name="description" content="Discover premium live batches and recorded courses from Eduteria Learn Topper." />
+  <meta property="og:title" content="Explore Batches | EDUTERIA LEARN TOPPER" />
+  <meta property="og:description" content="Discover premium live batches and recorded courses from Eduteria Learn Topper." />
+  <link rel="icon" type="image/jpeg" href="https://learntopper.in/sw.jpeg" />
+  <link rel="shortcut icon" type="image/jpeg" href="https://learntopper.in/sw.jpeg" />
+  <link rel="apple-touch-icon" href="https://learntopper.in/sw.jpeg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -24,6 +24,64 @@
 </head>
 <body>
   <div id="app"></div>
+
+  <!-- Telegram Community Popup Overlay -->
+  <div class="popup-overlay active" id="tgPopup">
+    <div class="fade-in relative z-10 flex w-full max-w-[360px] flex-col items-center rounded-[28px] border border-border/80 bg-[#0b1220]/95 p-7 text-center shadow-2xl backdrop-blur-xl">
+      <div class="mb-5 flex h-20 w-20 items-center justify-center rounded-full border border-sky-400/25 bg-black/60 p-1.5 shadow-lg ring-4 ring-sky-500/10">
+        <img alt="Learn Topper" class="h-full w-full rounded-full object-cover" src="https://learntopper.in/logo.jpg" />
+      </div>
+      <div class="mb-3 flex items-center justify-center gap-2.5">
+        <div class="text-cyan-400">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send h-5 w-5 -rotate-12 stroke-[2.5]" aria-hidden="true">
+            <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path>
+            <path d="m21.854 2.147-10.94 10.939"></path>
+          </svg>
+        </div>
+        <h3 class="text-xl font-bold tracking-tight text-white">Join Our Telegram</h3>
+      </div>
+      <p class="mb-6 text-xs leading-relaxed text-slate-400 sm:text-sm">Follow us on Telegram for connecting with us and any problems whatever. Createcool logo send on each landing!</p>
+      <a href="https://t.me/learn_topper" target="_blank" rel="noopener noreferrer" class="press flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-500 to-purple-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition-all hover:brightness-110 hover:shadow-cyan-500/40 active:scale-[0.98]" id="joinBtn">Join @learn_topper</a>
+      <button type="button" class="press mt-4 cursor-pointer text-xs font-medium text-slate-400 transition-colors hover:text-white" id="closePopup">Maybe Later</button>
+    </div>
+  </div>
+
+  <script>
+    function initTgPopup() {
+      var tgPopup = document.getElementById("tgPopup");
+      var closePopupBtn = document.getElementById("closePopup");
+      var joinBtn = document.getElementById("joinBtn");
+
+      // Close when clicking "Maybe Later"
+      if (closePopupBtn && tgPopup) {
+        closePopupBtn.addEventListener("click", function () {
+          tgPopup.classList.remove("active");
+        });
+      }
+
+      // Close when clicking "Join @learn_topper"
+      if (joinBtn && tgPopup) {
+        joinBtn.addEventListener("click", function () {
+          tgPopup.classList.remove("active");
+        });
+      }
+
+      // Close when clicking outside the popup card
+      if (tgPopup) {
+        tgPopup.addEventListener("click", function (e) {
+          if (e.target === tgPopup) {
+            tgPopup.classList.remove("active");
+          }
+        });
+      }
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initTgPopup);
+    } else {
+      initTgPopup();
+    }
+  </script>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
