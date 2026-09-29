@@ -1,0 +1,8 @@
+{
+  "name": "CODEWITH-VIVEK - Multi-Platform Course Explorer",
+  "description": "Explore top learning platforms and stream courses from Eduteria and more.",
+  "requestFramePermissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
