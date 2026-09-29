@@ -1,0 +1,3 @@
+# Cloudflare Pages Single-Page Application (SPA) routing
+/api/*  /api/:splat  200
+/*      /index.html  200
