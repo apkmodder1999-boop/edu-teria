@@ -1,5 +1,5 @@
-import { el, esc } from "../utils";
-import { navigate, navState, getEnrolledCourseIds } from "../store";
+import { el, esc, showToast } from "../utils";
+import { navigate, navState, getEnrolledCourseIds, toggleEnrollCourse, isCourseEnrolled } from "../store";
 import { fetchCourses } from "../api";
 import type { Course } from "../types";
 
@@ -101,8 +101,8 @@ export async function renderCourses(): Promise<HTMLElement> {
         if (enrolledIds.length > 0) {
           filtered = filtered.filter((c) => enrolledIds.includes(c.id));
         } else {
-          // If none specifically enrolled, show available / free batches
-          filtered = filtered.filter((c) => !c.price || c.price === 0 || c.id % 2 === 0);
+          // If user hasn't enrolled yet, show message
+          filtered = [];
         }
       }
 
@@ -119,15 +119,31 @@ export async function renderCourses(): Promise<HTMLElement> {
         gridEl.innerHTML = `
           <div class="col-span-full rounded-3xl border border-border/80 bg-card/60 p-12 text-center backdrop-blur-sm">
             <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-2xl text-primary">
-              📚
+              ${!isAllTab ? "🎓" : "📚"}
             </div>
-            <h3 class="text-lg font-bold text-foreground">No Batches Found</h3>
+            <h3 class="text-lg font-bold text-foreground">
+              ${!isAllTab ? "No Enrolled Batches Yet" : "No Batches Found"}
+            </h3>
             <p class="mx-auto mt-2 max-w-sm text-xs text-muted-foreground leading-relaxed">
-              ${q ? "No courses matching your search query. Try typing another term." : "No batches available in this tab right now."}
+              ${
+                !isAllTab
+                  ? "You haven't enrolled in any batches yet. Switch to 'All Batches' and click 'ENROLL NOW' on any batch to add it here!"
+                  : q
+                  ? "No courses matching your search query. Try typing another term."
+                  : "No batches available in this tab right now."
+              }
             </p>
+            ${
+              !isAllTab
+                ? `<button id="btnBrowseAll" class="press mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-black cursor-pointer">Browse All Batches</button>`
+                : ""
+            }
           </div>
         `;
-        countLabel.textContent = "0 Batches Found";
+        container.querySelector("#btnBrowseAll")?.addEventListener("click", () => {
+          navigate({ tab: "all" });
+        });
+        countLabel.textContent = !isAllTab ? "0 Enrolled Batches" : "0 Batches Found";
         return;
       }
 
@@ -135,16 +151,18 @@ export async function renderCourses(): Promise<HTMLElement> {
       gridEl.innerHTML = "";
 
       filtered.forEach((c) => {
+        let isEnrolled = isCourseEnrolled(c.id);
         const card = el(
           "div",
-          "group relative flex flex-col overflow-hidden rounded-[24px] border border-border/80 bg-[#0b1220]/80 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 cursor-pointer"
+          "group relative flex flex-col overflow-hidden rounded-[24px] border border-border/80 bg-[#0b1220]/85 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10"
         );
 
-        const hasPrice = c.price !== undefined && c.price > 0;
-        const hasDiscount = c.finalPrice !== undefined && c.finalPrice < (c.price || 0);
+        // Price formatting: show strikethrough original price then FREE
+        const originalPrice = c.price && c.price > 0 ? c.price : 999;
 
         card.innerHTML = `
-          <div class="relative aspect-[16/9] w-full overflow-hidden bg-slate-900/60">
+          <!-- Thumbnail with Strikethrough + Free badge -->
+          <div class="thumb-clickable relative aspect-[16/9] w-full overflow-hidden bg-slate-900/60 cursor-pointer">
             <img
               src="${esc(c.imageUrl || "https://learntopper.in/sw.jpeg")}"
               alt="${esc(c.name)}"
@@ -152,12 +170,16 @@ export async function renderCourses(): Promise<HTMLElement> {
               class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               onerror="this.onerror=null;this.src='https://learntopper.in/sw.jpeg';"
             />
-            <div class="absolute top-3 right-3 rounded-full bg-black/65 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-sky-400 backdrop-blur-md border border-sky-400/20 shadow-lg">
-              ${hasPrice ? `₹${c.finalPrice || c.price}` : "Available"}
+            <div class="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1 text-[11px] font-black uppercase tracking-wider backdrop-blur-md border border-white/10 shadow-lg">
+              <span class="line-through text-slate-400 font-bold decoration-red-400/90">₹${originalPrice}</span>
+              <span class="text-[#00e699]">FREE</span>
             </div>
           </div>
+
+          <!-- Card Content -->
           <div class="flex flex-1 flex-col p-5">
-            <h3 class="line-clamp-2 text-sm sm:text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors leading-snug">
+            <!-- Title -->
+            <h3 class="title-clickable line-clamp-2 text-sm sm:text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors leading-snug cursor-pointer">
               ${esc(c.name)}
             </h3>
             ${
@@ -165,29 +187,95 @@ export async function renderCourses(): Promise<HTMLElement> {
                 ? `<p class="line-clamp-2 text-xs text-muted-foreground mt-2 leading-relaxed">${esc(c.description)}</p>`
                 : ""
             }
-            <div class="mt-auto flex items-center justify-between pt-4 border-t border-border/60">
-              <div class="flex items-baseline gap-1.5">
-                <span class="text-sm font-extrabold text-sky-400">
-                  ${hasPrice ? `₹${c.finalPrice || c.price}` : "Free"}
-                </span>
-                ${hasDiscount ? `<span class="text-xs text-muted-foreground line-through">₹${c.price}</span>` : ""}
+
+            <!-- Price & Enroll Bar (Matching user screenshot) -->
+            <div class="mt-4 pt-4 border-t border-border/60 flex items-center justify-between gap-2">
+              <div class="flex flex-col">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs sm:text-sm font-bold text-slate-400 line-through decoration-red-400/80">
+                    ₹${originalPrice}
+                  </span>
+                  <span class="text-lg sm:text-xl font-black tracking-tight text-[#00e699]">
+                    FREE
+                  </span>
+                </div>
               </div>
-              <button class="press inline-flex items-center gap-1.5 rounded-xl bg-primary/15 px-3.5 py-1.5 text-xs font-bold text-primary group-hover:bg-primary group-hover:text-black transition-all">
-                <span>View Batch</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="9 18 15 12 9 6"></polyline>
+
+              <!-- Enroll Button -->
+              <button class="enroll-btn press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-black transition-all cursor-pointer ${
+                isEnrolled
+                  ? "border-emerald-400/50 bg-emerald-500/20 text-emerald-300 shadow-sm shadow-emerald-500/10"
+                  : "border-sky-400/40 bg-sky-500/10 text-sky-400 hover:bg-sky-400/20"
+              }">
+                <svg class="enroll-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  ${
+                    isEnrolled
+                      ? '<polyline points="20 6 9 17 4 12"></polyline>'
+                      : '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path>'
+                  }
+                </svg>
+                <span class="enroll-text">${isEnrolled ? "ENROLLED" : "ENROLL NOW"}</span>
+              </button>
+            </div>
+
+            <!-- Full-width Action: LET'S STUDY ▶ -->
+            <div class="mt-4">
+              <button class="study-btn press w-full rounded-full bg-[#0284c7] hover:bg-[#0369a1] active:scale-[0.98] py-2.5 sm:py-3 text-xs sm:text-sm font-black uppercase tracking-wider text-white shadow-md shadow-sky-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer">
+                <span>LET'S STUDY</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="6 4 20 12 6 20 6 4"></polygon>
                 </svg>
               </button>
             </div>
           </div>
         `;
 
-        card.addEventListener("click", () => {
+        // Handle navigation to subjects on card click or Let's Study
+        const goToSubjects = () => {
           navigate({
             view: "subjects",
             courseId: c.id,
             courseName: c.name,
           });
+        };
+
+        card.querySelector(".thumb-clickable")?.addEventListener("click", goToSubjects);
+        card.querySelector(".title-clickable")?.addEventListener("click", goToSubjects);
+        card.querySelector(".study-btn")?.addEventListener("click", goToSubjects);
+
+        // Handle Enroll Now toggle
+        const enrollBtn = card.querySelector<HTMLButtonElement>(".enroll-btn")!;
+        enrollBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const enrolledNow = toggleEnrollCourse(c.id);
+          isEnrolled = enrolledNow;
+
+          if (enrolledNow) {
+            enrollBtn.className =
+              "enroll-btn press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-black transition-all cursor-pointer border-emerald-400/50 bg-emerald-500/20 text-emerald-300 shadow-sm shadow-emerald-500/10";
+            enrollBtn.innerHTML = `
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>ENROLLED</span>
+            `;
+            showToast(`Enrolled in "${c.name}"!`, "success");
+          } else {
+            enrollBtn.className =
+              "enroll-btn press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-black transition-all cursor-pointer border-sky-400/40 bg-sky-500/10 text-sky-400 hover:bg-sky-400/20";
+            enrollBtn.innerHTML = `
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"></path>
+                <path d="M22 10v6"></path>
+                <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path>
+              </svg>
+              <span>ENROLL NOW</span>
+            `;
+            showToast(`Removed from enrolled batches`, "info");
+            if (!isAllTab) {
+              renderList();
+            }
+          }
         });
 
         gridEl.appendChild(card);

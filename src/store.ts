@@ -56,6 +56,10 @@ export function toggleEnrollCourse(id: number): boolean {
   return enrolled;
 }
 
+export function isCourseEnrolled(id: number): boolean {
+  return getEnrolledCourseIds().includes(id);
+}
+
 type Listener = (state: NavState) => void;
 const listeners: Listener[] = [];
 
