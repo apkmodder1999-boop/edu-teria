@@ -164,11 +164,11 @@ export async function renderCourses(): Promise<HTMLElement> {
           <!-- Thumbnail with Strikethrough + Free badge -->
           <div class="thumb-clickable relative aspect-[16/9] w-full overflow-hidden bg-slate-900/60 cursor-pointer">
             <img
-              src="${esc(c.imageUrl || "https://learntopper.in/sw.jpeg")}"
+              src="${esc(c.imageUrl || "https://learntopper.in/eduteria.jpg")}"
               alt="${esc(c.name)}"
               loading="lazy"
               class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              onerror="this.onerror=null;this.src='https://learntopper.in/sw.jpeg';"
+              onerror="this.onerror=null;this.src='https://learntopper.in/eduteria.jpg';"
             />
             <div class="absolute top-3 right-3 flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1 text-[11px] font-black uppercase tracking-wider backdrop-blur-md border border-white/10 shadow-lg">
               <span class="line-through text-slate-400 font-bold decoration-red-400/90">₹${originalPrice}</span>

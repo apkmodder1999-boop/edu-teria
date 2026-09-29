@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import axios from "axios";
-import crypto from "crypto";
+import CryptoJS from "crypto-js";
 import path from "path";
 import dns from "dns";
 import { fileURLToPath } from "url";
@@ -76,10 +76,16 @@ function mapChars(template: string, keyVal: string): string {
 function encryptPayload(plainText: string, gVal: string): string {
   const keyStr = gVal ? mapChars(KEY_SEED, gVal) : KEY_SEED;
   const ivStr = gVal ? mapChars(IV_SEED, gVal) : IV_SEED;
-  const cipher = crypto.createCipheriv(CIPHER_ALGO, Buffer.from(pad16(keyStr)), Buffer.from(ivStr));
-  let enc = cipher.update(plainText, "utf8", "base64");
-  enc += cipher.final("base64");
-  return enc + ":" + Buffer.from("1234567890123456").toString("base64");
+  const key = CryptoJS.enc.Utf8.parse(pad16(keyStr));
+  const iv = CryptoJS.enc.Utf8.parse(ivStr);
+  const encrypted = CryptoJS.AES.encrypt(plainText, key, {
+    iv: iv,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.Pkcs7,
+  });
+  const encBase64 = encrypted.toString();
+  const dummyBase64 = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse("1234567890123456"));
+  return encBase64 + ":" + dummyBase64;
 }
 
 function decryptResponse(data: string, gVal: string): any {
@@ -87,9 +93,15 @@ function decryptResponse(data: string, gVal: string): any {
     const keyStr = gVal ? mapChars(KEY_SEED, gVal) : KEY_SEED;
     const ivStr = gVal ? mapChars(IV_SEED, gVal) : IV_SEED;
     const [cipherB64] = data.split(":");
-    const decipher = crypto.createDecipheriv(CIPHER_ALGO, Buffer.from(pad16(keyStr)), Buffer.from(ivStr));
-    const dec = Buffer.concat([decipher.update(Buffer.from(cipherB64, "base64")), decipher.final()]);
-    return JSON.parse(dec.toString("utf8"));
+    const key = CryptoJS.enc.Utf8.parse(pad16(keyStr));
+    const iv = CryptoJS.enc.Utf8.parse(ivStr);
+    const decrypted = CryptoJS.AES.decrypt(cipherB64, key, {
+      iv: iv,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    });
+    const decStr = decrypted.toString(CryptoJS.enc.Utf8);
+    return JSON.parse(decStr);
   } catch {
     try {
       return JSON.parse(data);
