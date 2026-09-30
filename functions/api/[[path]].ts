@@ -114,57 +114,26 @@ async function getVideoTileId(courseId: string): Promise<string> {
   }
 }
 
-const toBase64 = (s: string) => {
-  if (typeof btoa === "function") return btoa(s);
-  return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(s));
-};
-
-const VC_HEADERS = {
-  "device-name": "1",
-  "account-id": "10000386",
-  "device-id": "71d3548555586126ed7071102e663619",
-  "device-type": "1",
-  version: "1",
-  "user-id": EDUTERIA_USER_ID,
-  accessKey: toBase64("D1LC3K5NZJRBS0OYHU4A"),
-  secretKey: toBase64("e+Dy5Z/bGvEnrABg3sRkmqCMTpN2Y4Io8S=VcHJ6"),
-  "Content-Type": "application/json",
-};
-
+// ─── Resolve Media Stream via Learn-Topper Worker ────────────────────────────
 async function resolveDrmStream(vdcId: string) {
   if (!vdcId) return null;
   try {
-    const res = await fetch("https://api.videocrypt.com/getVideoDetailsDrm", {
-      method: "POST",
-      headers: VC_HEADERS,
-      body: JSON.stringify({ name: vdcId, flag: 1 }),
-    });
-    const json: any = await res.json();
-    const link = json?.data?.link;
-    const url = link?.file_url || "";
-    const token = link?.token || "";
-    if (!url) return null;
-    const type = url.includes(".mpd") ? "dash" : "hls";
-    const licenseUrl = token
-      ? `https://license.videocrypt.com/validateLicense?pallyconCustomdataV2=${encodeURIComponent(token)}`
-      : "";
-    return { url, token, type, licenseUrl };
-  } catch {
-    return null;
-  }
-}
+    const res = await fetch(`https://api.learn-topper.workers.dev/api/video/edu?id=${encodeURIComponent(vdcId)}`);
+    const data: any = await res.json();
+    if (!data || (!data.url && !data.directUrl)) return null;
 
-async function fetchNonDrmUrl(vdcId: string): Promise<string | null> {
-  if (!vdcId) return null;
-  try {
-    const res = await fetch("https://api.videocrypt.com/getVideoDetails", {
-      method: "POST",
-      headers: VC_HEADERS,
-      body: JSON.stringify({ name: vdcId }),
-    });
-    const json: any = await res.json();
-    const d = json?.data;
-    return d?.file_url_hls || d?.link?.file_url_hls || d?.bitrate_urls?.[0]?.url || null;
+    return {
+      url: data.url || "",
+      directUrl: data.directUrl || "",
+      token: data.token || "",
+      type: data.type || (data.url?.includes(".mpd") ? "dash" : "hls"),
+      licenseUrl:
+        data.licenseUrl ||
+        (data.token
+          ? `https://license.videocrypt.com/validateLicense?pallyconCustomdataV2=${encodeURIComponent(data.token)}`
+          : ""),
+      success: data.success ?? true,
+    };
   } catch {
     return null;
   }
@@ -358,15 +327,12 @@ export const onRequest: PagesFunction = async (context) => {
         });
       }
 
-      const vdcId = url.searchParams.get("vdcId") || "";
+      const vdcId = url.searchParams.get("vdcId") || url.searchParams.get("id") || "";
       if (!vdcId) return jsonResponse({ success: false, error: "vdcId or url is required" }, 400);
 
-      const [stream, directUrl] = await Promise.all([
-        resolveDrmStream(vdcId).catch(() => null),
-        fetchNonDrmUrl(vdcId).catch(() => null),
-      ]);
+      const stream = await resolveDrmStream(vdcId);
 
-      if (!stream && !directUrl) {
+      if (!stream || (!stream.url && !stream.directUrl)) {
         return jsonResponse({
           success: false,
           error: "This video is locked or requires student authorization on Eduteria.",
@@ -376,11 +342,11 @@ export const onRequest: PagesFunction = async (context) => {
 
       return jsonResponse({
         success: true,
-        url: stream?.url || "",
-        token: stream?.token || "",
-        type: stream?.type || "dash",
-        licenseUrl: stream?.licenseUrl || "",
-        directUrl: directUrl || "",
+        url: stream.url || "",
+        token: stream.token || "",
+        type: stream.type || "dash",
+        licenseUrl: stream.licenseUrl || "",
+        directUrl: stream.directUrl || "",
       });
     } catch (err: any) {
       return jsonResponse({ success: false, error: String(err?.message || err) }, 500);

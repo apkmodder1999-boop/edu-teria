@@ -78,5 +78,24 @@ export async function fetchLectures(
 }
 
 export async function fetchVideoStream(vdcId: string, platform?: string): Promise<StreamResponse> {
+  try {
+    const res = await fetch(`https://api.learn-topper.workers.dev/api/video/edu?id=${encodeURIComponent(vdcId)}`);
+    const data = await res.json();
+    if (data && (data.url || data.directUrl)) {
+      return {
+        url: data.url || "",
+        token: data.token || "",
+        type: data.type || (data.url?.includes(".mpd") ? "dash" : "hls"),
+        licenseUrl:
+          data.licenseUrl ||
+          (data.token
+            ? `https://license.videocrypt.com/validateLicense?pallyconCustomdataV2=${encodeURIComponent(data.token)}`
+            : ""),
+        directUrl: data.directUrl || "",
+      };
+    }
+  } catch (err) {
+    console.warn("Direct worker call failed, falling back to local proxy", err);
+  }
   return get<StreamResponse>(`/video/stream?vdcId=${encodeURIComponent(vdcId)}`, platform);
 }

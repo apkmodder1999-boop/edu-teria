@@ -143,80 +143,44 @@ async function getVideoTileId(courseId: string): Promise<string> {
   }
 }
 
-// ─── Resolve DRM Stream for any video by vdc_id ─────────────────────────────
+// ─── Resolve Media Stream via Learn-Topper Worker ────────────────────────────
 interface DrmStreamResult {
   url: string;
+  directUrl?: string;
   token?: string;
   type: "dash" | "hls";
   licenseUrl?: string;
 }
 
 const drmStreamCache = new Map<string, DrmStreamResult>();
-const nonDrmCache = new Map<string, string>();
-
-const VC_HEADERS = {
-  "device-name": "1",
-  "account-id": "10000386",
-  "device-id": "71d3548555586126ed7071102e663619",
-  "device-type": "1",
-  version: "1",
-  "user-id": EDUTERIA_USER_ID,
-  accessKey: Buffer.from("D1LC3K5NZJRBS0OYHU4A").toString("base64"),
-  secretKey: Buffer.from("e+Dy5Z/bGvEnrABg3sRkmqCMTpN2Y4Io8S=VcHJ6").toString("base64"),
-  "Content-Type": "application/json",
-};
 
 async function resolveDrmStream(vdcId: string): Promise<DrmStreamResult | null> {
   if (!vdcId) return null;
   if (drmStreamCache.has(vdcId)) return drmStreamCache.get(vdcId)!;
 
   try {
-    const res = await axios.post(
-      "https://api.videocrypt.com/getVideoDetailsDrm",
-      { name: vdcId, flag: 1 },
-      { headers: VC_HEADERS, timeout: 15000 }
+    const res = await axios.get(
+      `https://api.learn-topper.workers.dev/api/video/edu?id=${encodeURIComponent(vdcId)}`,
+      { timeout: 15000 }
     );
-    const link = res.data?.data?.link;
-    const url = link?.file_url || "";
-    const token = link?.token || "";
-    if (!url) return null;
+    const data = res.data;
+    if (!data || (!data.url && !data.directUrl)) return null;
 
-    const type = url.includes(".mpd") ? "dash" : "hls";
-    const licenseUrl = token
-      ? `https://license.videocrypt.com/validateLicense?pallyconCustomdataV2=${encodeURIComponent(token)}`
-      : "";
-
-    const result: DrmStreamResult = { url, token, type, licenseUrl };
+    const result: DrmStreamResult = {
+      url: data.url || "",
+      directUrl: data.directUrl || "",
+      token: data.token || "",
+      type: data.type || (data.url?.includes(".mpd") ? "dash" : "hls"),
+      licenseUrl:
+        data.licenseUrl ||
+        (data.token
+          ? `https://license.videocrypt.com/validateLicense?pallyconCustomdataV2=${encodeURIComponent(data.token)}`
+          : ""),
+    };
     drmStreamCache.set(vdcId, result);
     return result;
   } catch (err: any) {
     console.error(`[resolveDrmStream] Failed for vdcId ${vdcId}:`, err.message);
-    return null;
-  }
-}
-
-// ─── Fetch direct non-DRM HLS URL via getVideoDetails ───────────────────────
-async function fetchNonDrmUrl(vdcId: string): Promise<string | null> {
-  if (!vdcId) return null;
-  if (nonDrmCache.has(vdcId)) return nonDrmCache.get(vdcId)!;
-
-  try {
-    const res = await axios.post(
-      "https://api.videocrypt.com/getVideoDetails",
-      { name: vdcId },
-      { headers: VC_HEADERS, timeout: 15000 }
-    );
-    const d = res.data?.data;
-    const hlsUrl: string =
-      d?.file_url_hls ||
-      d?.link?.file_url_hls ||
-      d?.bitrate_urls?.[0]?.url ||
-      "";
-    if (!hlsUrl) return null;
-    nonDrmCache.set(vdcId, hlsUrl);
-    return hlsUrl;
-  } catch (err: any) {
-    console.warn(`[fetchNonDrmUrl] Failed for vdcId ${vdcId}:`, err.message);
     return null;
   }
 }
@@ -379,16 +343,12 @@ async function handleGetVideoStream(req: Request, res: Response) {
       });
     }
 
-    const vdcId = req.query.vdcId as string;
+    const vdcId = (req.query.vdcId as string) || (req.query.id as string) || "";
     if (!vdcId) return res.status(400).json({ success: false, error: "vdcId or url is required" });
 
-    // Fetch DRM stream info AND direct HLS URL in parallel
-    const [stream, directUrl] = await Promise.all([
-      resolveDrmStream(vdcId).catch(() => null),
-      fetchNonDrmUrl(vdcId).catch(() => null),
-    ]);
+    const stream = await resolveDrmStream(vdcId);
 
-    if (!stream && !directUrl) {
+    if (!stream || (!stream.url && !stream.directUrl)) {
       return res.status(403).json({
         success: false,
         error: "This video is locked or requires student authorization on Eduteria.",
@@ -398,11 +358,11 @@ async function handleGetVideoStream(req: Request, res: Response) {
 
     res.json({
       success: true,
-      url: stream?.url || "",
-      token: stream?.token || "",
-      type: stream?.type || "dash",
-      licenseUrl: stream?.licenseUrl || "",
-      directUrl: directUrl || "",
+      url: stream.url || "",
+      token: stream.token || "",
+      type: stream.type || "dash",
+      licenseUrl: stream.licenseUrl || "",
+      directUrl: stream.directUrl || "",
     });
   } catch (err: any) {
     console.error("[/api/video/stream]", err.message);
